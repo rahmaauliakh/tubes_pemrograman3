@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const transaction_controller_1 = require("../controllers/transaction.controller");
+const auth_middleware_1 = require("../middleware/auth-middleware");
+const async_handler_1 = require("../utils/async-handler");
+const transactionRouter = (0, express_1.Router)();
+transactionRouter.use(auth_middleware_1.verifyToken);
+transactionRouter.use((0, auth_middleware_1.roleMiddleware)(["admin", "cashier"]));
+transactionRouter.post("/", (0, async_handler_1.asyncHandler)(transaction_controller_1.createTransactionHandler));
+transactionRouter.get("/", (0, async_handler_1.asyncHandler)(transaction_controller_1.getTransactionsHandler));
+transactionRouter.get("/:id", (0, async_handler_1.asyncHandler)(transaction_controller_1.getTransactionHandler));
+exports.default = transactionRouter;
