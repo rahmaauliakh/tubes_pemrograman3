@@ -8,6 +8,9 @@ import { Role } from "../utils/auth-validator";
 const transactionListSelect = {
   id: true,
   totalAmount: true,
+  paymentStatus: true,
+  paymentMethod: true,
+  midtransTransactionId: true,
   createdAt: true,
   cashierId: true,
   cashier: {
@@ -68,6 +71,9 @@ const mapTransactionList = (transaction: TransactionListRecord) => {
   return {
     id: transaction.id,
     totalAmount: Number(transaction.totalAmount),
+    paymentStatus: transaction.paymentStatus,
+    paymentMethod: transaction.paymentMethod,
+    midtransTransactionId: transaction.midtransTransactionId,
     createdAt: transaction.createdAt,
     cashierId: transaction.cashierId,
     cashier: {

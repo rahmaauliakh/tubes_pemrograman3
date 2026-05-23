@@ -28,6 +28,8 @@ export const notFoundHandler = (
       "POST /api/transactions",
       "GET /api/transactions",
       "GET /api/transactions/:id",
+      "POST /api/payments/create/:transactionId",
+      "POST /api/payments/webhook",
     ],
   });
 };

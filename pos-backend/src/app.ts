@@ -3,6 +3,7 @@ import cors from "cors";
 import "dotenv/config";
 
 import authRouter from "./routes/auth.routes";
+import paymentRouter from "./routes/payment.routes";
 import productRouter from "./routes/product.routes";
 import transactionRouter from "./routes/transaction.routes";
 import { errorHandler, notFoundHandler } from "./middleware/error-middleware";
@@ -21,6 +22,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api/products", productRouter);
 app.use("/api/transactions", transactionRouter);
+app.use("/api/payments", paymentRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

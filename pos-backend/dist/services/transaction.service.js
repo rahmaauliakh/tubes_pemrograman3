@@ -7,6 +7,9 @@ const api_error_1 = require("../utils/api-error");
 const transactionListSelect = {
     id: true,
     totalAmount: true,
+    paymentStatus: true,
+    paymentMethod: true,
+    midtransTransactionId: true,
     createdAt: true,
     cashierId: true,
     cashier: {
@@ -39,6 +42,9 @@ const mapTransactionList = (transaction) => {
     return {
         id: transaction.id,
         totalAmount: Number(transaction.totalAmount),
+        paymentStatus: transaction.paymentStatus,
+        paymentMethod: transaction.paymentMethod,
+        midtransTransactionId: transaction.midtransTransactionId,
         createdAt: transaction.createdAt,
         cashierId: transaction.cashierId,
         cashier: {

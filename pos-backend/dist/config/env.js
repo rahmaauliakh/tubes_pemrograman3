@@ -11,6 +11,19 @@ const parsePort = (value) => {
     }
     return parsedValue;
 };
+const parseBoolean = (value, defaultValue) => {
+    if (!value) {
+        return defaultValue;
+    }
+    const normalizedValue = value.trim().toLowerCase();
+    if (normalizedValue === "true") {
+        return true;
+    }
+    if (normalizedValue === "false") {
+        return false;
+    }
+    throw new Error("Boolean environment value must be true or false.");
+};
 const getRequiredEnv = (key) => {
     const value = process.env[key];
     if (!value) {
@@ -22,4 +35,7 @@ exports.env = {
     PORT: parsePort(process.env.PORT),
     DATABASE_URL: getRequiredEnv("DATABASE_URL"),
     JWT_SECRET: getRequiredEnv("JWT_SECRET"),
+    MIDTRANS_SERVER_KEY: getRequiredEnv("MIDTRANS_SERVER_KEY"),
+    MIDTRANS_CLIENT_KEY: getRequiredEnv("MIDTRANS_CLIENT_KEY"),
+    MIDTRANS_IS_PRODUCTION: parseBoolean(process.env.MIDTRANS_IS_PRODUCTION, false),
 };

@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const payment_controller_1 = require("../controllers/payment.controller");
+const auth_middleware_1 = require("../middleware/auth-middleware");
+const async_handler_1 = require("../utils/async-handler");
+const paymentRouter = (0, express_1.Router)();
+paymentRouter.post("/webhook", (0, async_handler_1.asyncHandler)(payment_controller_1.midtransWebhookHandler));
+paymentRouter.use(auth_middleware_1.verifyToken);
+paymentRouter.use((0, auth_middleware_1.roleMiddleware)(["admin", "cashier"]));
+paymentRouter.post("/create/:transactionId", (0, async_handler_1.asyncHandler)(payment_controller_1.createPaymentHandler));
+exports.default = paymentRouter;

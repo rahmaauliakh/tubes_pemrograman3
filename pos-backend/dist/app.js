@@ -7,6 +7,7 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 require("dotenv/config");
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
+const payment_routes_1 = __importDefault(require("./routes/payment.routes"));
 const product_routes_1 = __importDefault(require("./routes/product.routes"));
 const transaction_routes_1 = __importDefault(require("./routes/transaction.routes"));
 const error_middleware_1 = require("./middleware/error-middleware");
@@ -21,6 +22,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", auth_routes_1.default);
 app.use("/api/products", product_routes_1.default);
 app.use("/api/transactions", transaction_routes_1.default);
+app.use("/api/payments", payment_routes_1.default);
 app.use(error_middleware_1.notFoundHandler);
 app.use(error_middleware_1.errorHandler);
 exports.default = app;
