@@ -1,8 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processMidtransWebhook = exports.createPayment = void 0;
+exports.processMidtransWebhook = exports.retryPayment = exports.checkPaymentStatus = exports.createPayment = void 0;
+const env_1 = require("../config/env");
 const midtrans_1 = require("../config/midtrans");
 const prisma_1 = require("../config/prisma");
+const whatsapp_service_1 = require("./whatsapp.service");
 const api_error_1 = require("../utils/api-error");
 const paymentTransactionSelect = {
     id: true,
@@ -11,6 +13,7 @@ const paymentTransactionSelect = {
     paymentMethod: true,
     midtransTransactionId: true,
     midtransOrderId: true,
+    customerPhone: true,
     cashier: {
         select: {
             id: true,
@@ -34,6 +37,11 @@ const paymentTransactionSelect = {
 const createMidtransOrderId = (transactionId) => {
     return `POS-${transactionId}-${Date.now()}`;
 };
+const getMidtransApiBaseUrl = () => {
+    return env_1.env.MIDTRANS_IS_PRODUCTION
+        ? "https://api.midtrans.com"
+        : "https://api.sandbox.midtrans.com";
+};
 const extractTransactionIdFromOrderId = (orderId) => {
     const parts = orderId.split("-");
     const transactionId = Number(parts[1]);
@@ -53,6 +61,78 @@ const mapWebhookStatusToPaymentStatus = (payload) => {
         return "pending";
     }
     return "failed";
+};
+const mapMidtransStatusToPaymentStatus = (payload) => {
+    return mapWebhookStatusToPaymentStatus({
+        order_id: "",
+        status_code: "",
+        gross_amount: "",
+        signature_key: "",
+        transaction_status: payload.transaction_status,
+        fraud_status: payload.fraud_status,
+    });
+};
+const syncTransactionPaymentStatus = async (transactionId, midtransStatus) => {
+    const paymentStatus = mapMidtransStatusToPaymentStatus(midtransStatus);
+    const updatedTransaction = await prisma_1.prisma.transaction.update({
+        where: {
+            id: transactionId,
+        },
+        data: {
+            paymentStatus,
+            paymentMethod: midtransStatus.payment_type ?? null,
+            midtransTransactionId: midtransStatus.transaction_id ?? null,
+            midtransOrderId: midtransStatus.order_id,
+        },
+        select: {
+            id: true,
+            paymentStatus: true,
+            paymentMethod: true,
+            midtransTransactionId: true,
+            midtransOrderId: true,
+            updatedAt: true,
+        },
+    });
+    return {
+        transactionId: updatedTransaction.id,
+        orderId: updatedTransaction.midtransOrderId,
+        paymentStatus: updatedTransaction.paymentStatus,
+        paymentMethod: updatedTransaction.paymentMethod,
+        midtransTransactionId: updatedTransaction.midtransTransactionId,
+        midtransStatus: midtransStatus.transaction_status,
+        lastSyncedAt: updatedTransaction.updatedAt,
+        source: "midtrans",
+    };
+};
+const getMidtransTransactionStatus = async (orderId) => {
+    const credentials = Buffer.from(`${env_1.env.MIDTRANS_SERVER_KEY}:`).toString("base64");
+    const response = await fetch(`${getMidtransApiBaseUrl()}/v2/${encodeURIComponent(orderId)}/status`, {
+        method: "GET",
+        headers: {
+            Authorization: `Basic ${credentials}`,
+            Accept: "application/json",
+        },
+    });
+    if (response.status === 404) {
+        throw new api_error_1.ApiError(404, "Midtrans transaction not found.");
+    }
+    if (!response.ok) {
+        throw new api_error_1.ApiError(502, `Failed to fetch Midtrans transaction status. HTTP ${response.status}.`);
+    }
+    const payload = (await response.json());
+    if (typeof payload.order_id !== "string" ||
+        typeof payload.transaction_status !== "string") {
+        throw new api_error_1.ApiError(502, "Invalid Midtrans status response.");
+    }
+    return {
+        order_id: payload.order_id,
+        transaction_status: payload.transaction_status,
+        payment_type: typeof payload.payment_type === "string" ? payload.payment_type : undefined,
+        transaction_id: typeof payload.transaction_id === "string"
+            ? payload.transaction_id
+            : undefined,
+        fraud_status: typeof payload.fraud_status === "string" ? payload.fraud_status : undefined,
+    };
 };
 const getTransactionForPayment = async (transactionId) => {
     const transaction = await prisma_1.prisma.transaction.findUnique({
@@ -113,6 +193,53 @@ const createPayment = async (transactionId) => {
     };
 };
 exports.createPayment = createPayment;
+const checkPaymentStatus = async (transactionId) => {
+    const transaction = await getTransactionForPayment(transactionId);
+    if (!transaction.midtransOrderId) {
+        return {
+            transactionId: transaction.id,
+            orderId: null,
+            paymentStatus: transaction.paymentStatus,
+            paymentMethod: transaction.paymentMethod,
+            midtransTransactionId: transaction.midtransTransactionId,
+            midtransStatus: null,
+            lastSyncedAt: null,
+            source: "local",
+        };
+    }
+    const midtransStatus = await getMidtransTransactionStatus(transaction.midtransOrderId);
+    return syncTransactionPaymentStatus(transaction.id, midtransStatus);
+};
+exports.checkPaymentStatus = checkPaymentStatus;
+const retryPayment = async (transactionId) => {
+    const transaction = await getTransactionForPayment(transactionId);
+    if (transaction.paymentStatus === "paid") {
+        throw new api_error_1.ApiError(400, "Transaction has already been paid.");
+    }
+    if (transaction.midtransOrderId) {
+        const currentStatus = await getMidtransTransactionStatus(transaction.midtransOrderId);
+        const syncedStatus = await syncTransactionPaymentStatus(transaction.id, currentStatus);
+        if (syncedStatus.paymentStatus === "paid") {
+            throw new api_error_1.ApiError(400, "Transaction has already been paid.");
+        }
+        if (syncedStatus.paymentStatus === "pending") {
+            throw new api_error_1.ApiError(400, "Existing Midtrans payment is still pending and cannot be retried yet.");
+        }
+    }
+    await prisma_1.prisma.transaction.update({
+        where: {
+            id: transaction.id,
+        },
+        data: {
+            paymentStatus: "pending",
+            paymentMethod: null,
+            midtransTransactionId: null,
+            midtransOrderId: null,
+        },
+    });
+    return (0, exports.createPayment)(transaction.id);
+};
+exports.retryPayment = retryPayment;
 const processMidtransWebhook = async (payload) => {
     const transactionId = extractTransactionIdFromOrderId(payload.order_id);
     const paymentStatus = mapWebhookStatusToPaymentStatus(payload);
@@ -150,12 +277,28 @@ const processMidtransWebhook = async (payload) => {
         },
         select: {
             id: true,
+            totalAmount: true,
             paymentStatus: true,
             paymentMethod: true,
             midtransTransactionId: true,
+            customerPhone: true,
             updatedAt: true,
         },
     });
+    if (updatedTransaction.paymentStatus === "paid") {
+        try {
+            await (0, whatsapp_service_1.sendPaymentInvoiceWhatsApp)({
+                transactionId: updatedTransaction.id,
+                totalAmount: Number(updatedTransaction.totalAmount),
+                paymentStatus: updatedTransaction.paymentStatus,
+                paymentMethod: updatedTransaction.paymentMethod,
+                customerPhone: updatedTransaction.customerPhone,
+            });
+        }
+        catch (error) {
+            console.error("Failed to send WhatsApp invoice notification:", error);
+        }
+    }
     return {
         transactionId: updatedTransaction.id,
         paymentStatus: updatedTransaction.paymentStatus,

@@ -18,6 +18,19 @@ const validateTransactionItem = (item, index) => {
         quantity: validatePositiveInteger(payload.quantity, `items[${index}].quantity`),
     };
 };
+const validateOptionalPhoneNumber = (value) => {
+    if (value === undefined || value === null) {
+        return undefined;
+    }
+    if (typeof value !== "string") {
+        throw new api_error_1.ApiError(400, "customerPhone must be a string.");
+    }
+    const normalizedPhone = value.replace(/[^\d]/g, "");
+    if (normalizedPhone.length < 9) {
+        throw new api_error_1.ApiError(400, "customerPhone must contain at least 9 digits.");
+    }
+    return normalizedPhone;
+};
 const validateCreateTransactionPayload = (body) => {
     if (!body || typeof body !== "object") {
         throw new api_error_1.ApiError(400, "Request body is required.");
@@ -28,6 +41,7 @@ const validateCreateTransactionPayload = (body) => {
     }
     return {
         items: payload.items.map((item, index) => validateTransactionItem(item, index)),
+        customerPhone: validateOptionalPhoneNumber(payload.customerPhone),
     };
 };
 exports.validateCreateTransactionPayload = validateCreateTransactionPayload;

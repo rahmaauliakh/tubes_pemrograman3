@@ -16,6 +16,7 @@ Project ini menyediakan fitur autentikasi user, manajemen produk, dan transaksi 
 - Role user `admin` dan `cashier`
 - CRUD produk
 - Pencatatan transaksi penjualan
+- Integrasi pembayaran Midtrans Snap
 - Seed data user dan produk contoh
 - Collection Postman untuk testing API
 
@@ -55,10 +56,15 @@ Sebelum menjalankan project, pastikan sudah tersedia:
 
 Buat file `.env` di folder `pos-backend` lalu isi seperti berikut:
 
+Kalau ingin cepat, salin contoh dari `pos-backend/.env.example`.
+
 ```env
 PORT=3000
 DATABASE_URL="mysql://root:@localhost:3306/pos_backend"
 JWT_SECRET="your_jwt_secret"
+MIDTRANS_SERVER_KEY="your_midtrans_server_key"
+MIDTRANS_CLIENT_KEY="your_midtrans_client_key"
+MIDTRANS_IS_PRODUCTION=false
 ```
 
 Keterangan:
@@ -66,6 +72,11 @@ Keterangan:
 - `PORT` adalah port server backend.
 - `DATABASE_URL` adalah koneksi database MySQL/MariaDB.
 - `JWT_SECRET` dipakai untuk generate dan verifikasi token login.
+- `MIDTRANS_SERVER_KEY` dipakai backend untuk create payment, cek status, dan validasi webhook Midtrans.
+- `MIDTRANS_CLIENT_KEY` dikembalikan di response create/retry payment untuk kebutuhan frontend Snap.
+- `MIDTRANS_IS_PRODUCTION` isi `false` untuk sandbox dan `true` untuk production.
+- `FONNTE_TOKEN` adalah token API WhatsApp dari dashboard Fonnte.
+- `FONNTE_DEFAULT_TARGET` adalah nomor WhatsApp fallback jika `customerPhone` tidak dikirim di transaksi.
 
 ## Cara Menjalankan Project
 
@@ -209,9 +220,85 @@ Contoh body create transaction:
       "productId": 2,
       "quantity": 1
     }
-  ]
+  ],
+  "customerPhone": "081234567890"
 }
 ```
+
+### 4. Payments
+
+Base path: `/api/payments`
+
+- `POST /create/:transactionId` membuat Snap transaction Midtrans baru
+- `GET /status/:transactionId` cek status payment ke Midtrans lalu sinkronkan status lokal
+- `POST /retry/:transactionId` membuat ulang payment Midtrans jika payment sebelumnya sudah gagal/expire/cancel
+- `POST /webhook` endpoint callback Midtrans
+
+Hak akses:
+
+- `admin` dan `cashier` bisa membuat payment, cek status, dan retry payment
+- webhook Midtrans tidak memakai JWT, tetapi wajib `signature_key` valid
+
+### 5. WhatsApp Notification
+
+Notifikasi WhatsApp otomatis dikirim setelah webhook Midtrans sukses dan transaksi menjadi `paid`.
+
+Pesan invoice sederhana yang dikirim:
+
+```text
+Invoice Pembayaran POS
+
+Transaction ID: 12
+Total Pembayaran: Rp25.000
+Status Pembayaran: paid
+Metode Pembayaran: bank_transfer
+
+Pembayaran berhasil diproses. Terima kasih.
+```
+
+Contoh request API Fonnte yang dipakai backend:
+
+```http
+POST https://api.fonnte.com/send
+Authorization: YOUR_FONNTE_TOKEN
+Content-Type: application/x-www-form-urlencoded
+
+target=628123456789&message=Invoice%20Pembayaran%20POS...
+```
+
+Contoh response JSON Fonnte:
+
+```json
+{
+  "status": true,
+  "detail": "success! message in queue",
+  "id": ["80367170"],
+  "process": "pending",
+  "requestid": 2937124,
+  "target": ["628123456789"]
+}
+```
+
+Flow testing yang disarankan:
+
+1. Buat transaksi dengan `customerPhone` atau siapkan `FONNTE_DEFAULT_TARGET`.
+2. Jalankan `POST /api/payments/create/:transactionId`.
+3. Simulasikan `POST /api/payments/webhook` dengan status `settlement`.
+4. Cek log backend dan inbox WhatsApp tujuan.
+
+Cara mendapatkan token Fonnte:
+
+1. Login ke dashboard Fonnte.
+2. Buka menu device.
+3. Pilih device WhatsApp yang sudah terhubung.
+4. Copy token API yang tersedia di device list.
+
+Cara test WhatsApp terkirim:
+
+1. Pastikan `FONNTE_TOKEN` dan nomor tujuan sudah diisi di `.env`.
+2. Buat transaksi lalu jalankan webhook Midtrans sampai status menjadi `paid`.
+3. Jika backend berhasil memanggil Fonnte, pesan invoice akan masuk ke nomor tujuan.
+4. Jika gagal, cek log backend dan response Fonnte di terminal.
 
 ## Cara Menggunakan API
 
@@ -248,11 +335,13 @@ Repository ini sudah memiliki folder `postman` dan `.postman` untuk membantu pen
 
 Langkah penggunaan:
 
-1. Import collection/folder Postman dari repository ini ke Postman.
+1. Import file `postman/midtrans-flow.postman_collection.json` ke Postman.
 2. Jalankan endpoint `login` terlebih dahulu.
 3. Simpan token hasil login.
 4. Tambahkan token ke header `Authorization` dengan format `Bearer <token>`.
-5. Lanjutkan pengujian endpoint produk dan transaksi.
+5. Jalankan flow `Create Transaction -> Create Payment -> Check Payment Status`.
+6. Gunakan `Retry Payment` jika payment sebelumnya gagal atau expired.
+7. Untuk simulasi callback, isi variable collection `midtransServerKey` lalu jalankan `Midtrans Webhook Example`.
 
 ## Response Root API
 

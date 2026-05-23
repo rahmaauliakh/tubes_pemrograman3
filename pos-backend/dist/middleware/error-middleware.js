@@ -25,6 +25,8 @@ const notFoundHandler = (req, res, _next) => {
             "GET /api/transactions",
             "GET /api/transactions/:id",
             "POST /api/payments/create/:transactionId",
+            "GET /api/payments/status/:transactionId",
+            "POST /api/payments/retry/:transactionId",
             "POST /api/payments/webhook",
         ],
     });

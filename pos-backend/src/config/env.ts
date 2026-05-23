@@ -31,7 +31,12 @@ const parseBoolean = (value: string | undefined, defaultValue: boolean): boolean
 };
 
 const getRequiredEnv = (
-  key: "DATABASE_URL" | "JWT_SECRET" | "MIDTRANS_SERVER_KEY" | "MIDTRANS_CLIENT_KEY"
+  key:
+    | "DATABASE_URL"
+    | "JWT_SECRET"
+    | "MIDTRANS_SERVER_KEY"
+    | "MIDTRANS_CLIENT_KEY"
+    | "FONNTE_TOKEN"
 ): string => {
   const value = process.env[key];
 
@@ -49,4 +54,6 @@ export const env = {
   MIDTRANS_SERVER_KEY: getRequiredEnv("MIDTRANS_SERVER_KEY"),
   MIDTRANS_CLIENT_KEY: getRequiredEnv("MIDTRANS_CLIENT_KEY"),
   MIDTRANS_IS_PRODUCTION: parseBoolean(process.env.MIDTRANS_IS_PRODUCTION, false),
+  FONNTE_TOKEN: getRequiredEnv("FONNTE_TOKEN"),
+  FONNTE_DEFAULT_TARGET: process.env.FONNTE_DEFAULT_TARGET,
 };

@@ -1,0 +1,287 @@
+{
+  "info": {
+    "_postman_id": "8d7a8fcb-49d3-4a58-a9fd-3e8c6a9df001",
+    "name": "POS Midtrans Flow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Contoh flow Postman untuk login, membuat transaksi POS, membuat payment Midtrans, cek status, retry payment, dan simulasi webhook."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "username",
+      "value": "cashier"
+    },
+    {
+      "key": "password",
+      "value": "cashier123"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "transactionId",
+      "value": ""
+    },
+    {
+      "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "grossAmount",
+      "value": ""
+    },
+    {
+      "key": "midtransServerKey",
+      "value": "SB-Mid-server-xxxxxxxxxxxxxxxx"
+    },
+    {
+      "key": "midtransStatusCode",
+      "value": "200"
+    },
+    {
+      "key": "midtransTransactionStatus",
+      "value": "settlement"
+    },
+    {
+      "key": "midtransPaymentType",
+      "value": "bank_transfer"
+    },
+    {
+      "key": "midtransTransactionId",
+      "value": "midtrans-demo-transaction-id"
+    },
+    {
+      "key": "signatureKey",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Login Cashier",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const response = pm.response.json();",
+              "pm.collectionVariables.set('token', response.data.token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "2. Create Transaction",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const response = pm.response.json();",
+              "pm.collectionVariables.set('transactionId', String(response.data.id));",
+              "pm.collectionVariables.set('grossAmount', String(response.data.totalAmount));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [\n    {\n      \"productId\": 1,\n      \"quantity\": 2\n    },\n    {\n      \"productId\": 2,\n      \"quantity\": 1\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/transactions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "transactions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "3. Create Payment",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const response = pm.response.json();",
+              "pm.collectionVariables.set('orderId', response.data.orderId);",
+              "pm.collectionVariables.set('grossAmount', String(response.data.totalAmount));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/payments/create/{{transactionId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payments",
+            "create",
+            "{{transactionId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "4. Check Payment Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/payments/status/{{transactionId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payments",
+            "status",
+            "{{transactionId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "5. Retry Payment",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const response = pm.response.json();",
+              "pm.collectionVariables.set('orderId', response.data.orderId);",
+              "pm.collectionVariables.set('grossAmount', String(response.data.totalAmount));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/payments/retry/{{transactionId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payments",
+            "retry",
+            "{{transactionId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "6. Midtrans Webhook Example",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const orderId = pm.collectionVariables.get('orderId');",
+              "const statusCode = pm.collectionVariables.get('midtransStatusCode');",
+              "const grossAmount = pm.collectionVariables.get('grossAmount');",
+              "const serverKey = pm.collectionVariables.get('midtransServerKey');",
+              "const signatureKey = CryptoJS.SHA512(`${orderId}${statusCode}${grossAmount}${serverKey}`).toString();",
+              "pm.collectionVariables.set('signatureKey', signatureKey);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"order_id\": \"{{orderId}}\",\n  \"status_code\": \"{{midtransStatusCode}}\",\n  \"gross_amount\": \"{{grossAmount}}\",\n  \"signature_key\": \"{{signatureKey}}\",\n  \"transaction_status\": \"{{midtransTransactionStatus}}\",\n  \"payment_type\": \"{{midtransPaymentType}}\",\n  \"transaction_id\": \"{{midtransTransactionId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/payments/webhook",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payments",
+            "webhook"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -2,8 +2,10 @@ import { Request, Response } from "express";
 
 import { env } from "../config/env";
 import {
+  checkPaymentStatus,
   createPayment,
   processMidtransWebhook,
+  retryPayment,
 } from "../services/payment.service";
 import {
   validateCreatePaymentParams,
@@ -21,6 +23,43 @@ export const createPaymentHandler = async (
   res.status(201).json({
     success: true,
     message: "Midtrans payment created successfully.",
+    data: {
+      transactionId: payment.transactionId,
+      orderId: payment.orderId,
+      totalAmount: payment.totalAmount,
+      paymentStatus: payment.paymentStatus,
+      snapToken: payment.snapToken,
+      redirectUrl: payment.redirectUrl,
+      clientKey: env.MIDTRANS_CLIENT_KEY,
+      isProduction: env.MIDTRANS_IS_PRODUCTION,
+    },
+  });
+};
+
+export const checkPaymentStatusHandler = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { transactionId } = validateCreatePaymentParams(req.params);
+  const paymentStatus = await checkPaymentStatus(transactionId);
+
+  res.status(200).json({
+    success: true,
+    message: "Midtrans payment status fetched successfully.",
+    data: paymentStatus,
+  });
+};
+
+export const retryPaymentHandler = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { transactionId } = validateCreatePaymentParams(req.params);
+  const payment = await retryPayment(transactionId);
+
+  res.status(201).json({
+    success: true,
+    message: "Midtrans payment retried successfully.",
     data: {
       transactionId: payment.transactionId,
       orderId: payment.orderId,

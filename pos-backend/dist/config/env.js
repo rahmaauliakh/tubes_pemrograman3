@@ -38,4 +38,6 @@ exports.env = {
     MIDTRANS_SERVER_KEY: getRequiredEnv("MIDTRANS_SERVER_KEY"),
     MIDTRANS_CLIENT_KEY: getRequiredEnv("MIDTRANS_CLIENT_KEY"),
     MIDTRANS_IS_PRODUCTION: parseBoolean(process.env.MIDTRANS_IS_PRODUCTION, false),
+    FONNTE_TOKEN: getRequiredEnv("FONNTE_TOKEN"),
+    FONNTE_DEFAULT_TARGET: process.env.FONNTE_DEFAULT_TARGET,
 };

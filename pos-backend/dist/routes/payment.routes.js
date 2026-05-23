@@ -9,4 +9,6 @@ paymentRouter.post("/webhook", (0, async_handler_1.asyncHandler)(payment_control
 paymentRouter.use(auth_middleware_1.verifyToken);
 paymentRouter.use((0, auth_middleware_1.roleMiddleware)(["admin", "cashier"]));
 paymentRouter.post("/create/:transactionId", (0, async_handler_1.asyncHandler)(payment_controller_1.createPaymentHandler));
+paymentRouter.get("/status/:transactionId", (0, async_handler_1.asyncHandler)(payment_controller_1.checkPaymentStatusHandler));
+paymentRouter.post("/retry/:transactionId", (0, async_handler_1.asyncHandler)(payment_controller_1.retryPaymentHandler));
 exports.default = paymentRouter;

@@ -7,6 +7,7 @@ export type TransactionItemPayload = {
 
 export type CreateTransactionPayload = {
   items: TransactionItemPayload[];
+  customerPhone?: string;
 };
 
 const validatePositiveInteger = (value: unknown, fieldName: string): number => {
@@ -30,6 +31,24 @@ const validateTransactionItem = (item: unknown, index: number): TransactionItemP
   };
 };
 
+const validateOptionalPhoneNumber = (value: unknown): string | undefined => {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    throw new ApiError(400, "customerPhone must be a string.");
+  }
+
+  const normalizedPhone = value.replace(/[^\d]/g, "");
+
+  if (normalizedPhone.length < 9) {
+    throw new ApiError(400, "customerPhone must contain at least 9 digits.");
+  }
+
+  return normalizedPhone;
+};
+
 export const validateCreateTransactionPayload = (
   body: unknown
 ): CreateTransactionPayload => {
@@ -45,5 +64,6 @@ export const validateCreateTransactionPayload = (
 
   return {
     items: payload.items.map((item, index) => validateTransactionItem(item, index)),
+    customerPhone: validateOptionalPhoneNumber(payload.customerPhone),
   };
 };

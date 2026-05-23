@@ -10,6 +10,7 @@ const transactionListSelect = {
     paymentStatus: true,
     paymentMethod: true,
     midtransTransactionId: true,
+    customerPhone: true,
     createdAt: true,
     cashierId: true,
     cashier: {
@@ -45,6 +46,7 @@ const mapTransactionList = (transaction) => {
         paymentStatus: transaction.paymentStatus,
         paymentMethod: transaction.paymentMethod,
         midtransTransactionId: transaction.midtransTransactionId,
+        customerPhone: transaction.customerPhone,
         createdAt: transaction.createdAt,
         cashierId: transaction.cashierId,
         cashier: {
@@ -134,6 +136,7 @@ const createTransaction = async (payload, cashier) => {
             data: {
                 cashierId: cashier.userId,
                 totalAmount,
+                customerPhone: payload.customerPhone ?? null,
             },
         });
         await tx.transactionItem.createMany({
