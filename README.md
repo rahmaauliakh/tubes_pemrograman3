@@ -1,3 +1,8 @@
+# Nama : Rahma Aulia Khoirunnisa 
+# NPM : 714240057
+# Kelas : 2B D4 Teknik Informatika
+# Implementasi REST API Point of Sale (POS) dengan Integrasi Payment Gateway dan Notification Service
+
 # POS Backend API
 
 Backend sederhana untuk sistem Point of Sale (POS) menggunakan `Express`, `TypeScript`, `Prisma`, dan `MySQL/MariaDB`.
