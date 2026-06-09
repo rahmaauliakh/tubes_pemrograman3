@@ -1,11 +1,13 @@
 import express from "express";
 import cors from "cors";
 import "dotenv/config";
+import swaggerUi from "swagger-ui-express";
 
 import authRouter from "./routes/auth.routes";
 import paymentRouter from "./routes/payment.routes";
 import productRouter from "./routes/product.routes";
 import transactionRouter from "./routes/transaction.routes";
+import { swaggerSpec } from "./config/swagger";
 import { errorHandler, notFoundHandler } from "./middleware/error-middleware";
 
 const app = express();
@@ -15,9 +17,12 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.json({
-    message: "POS API Running"
+    message: "POS API Running",
+    docs: "/api-docs",
   });
 });
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use("/api/auth", authRouter);
 app.use("/api/products", productRouter);
