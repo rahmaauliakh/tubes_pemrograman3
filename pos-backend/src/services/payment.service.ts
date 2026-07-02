@@ -3,6 +3,7 @@ import { PaymentStatus, Prisma } from "@prisma/client";
 import { env } from "../config/env";
 import { snap } from "../config/midtrans";
 import { prisma } from "../config/prisma";
+import { publishEvent } from "../messaging/rabbitmq";
 import { sendPaymentInvoiceWhatsApp } from "./whatsapp.service";
 import { ApiError } from "../utils/api-error";
 import { MidtransWebhookPayload } from "../utils/payment-validator";
@@ -168,6 +169,16 @@ const syncTransactionPaymentStatus = async (
     },
   });
 
+  await publishEvent("payment.status_synced", {
+    transactionId: updatedTransaction.id,
+    orderId: updatedTransaction.midtransOrderId,
+    paymentStatus: updatedTransaction.paymentStatus,
+    paymentMethod: updatedTransaction.paymentMethod,
+    midtransTransactionId: updatedTransaction.midtransTransactionId,
+    midtransStatus: midtransStatus.transaction_status,
+    source: "midtrans",
+  });
+
   return {
     transactionId: updatedTransaction.id,
     orderId: updatedTransaction.midtransOrderId,
@@ -300,7 +311,7 @@ export const createPayment = async (
     },
   });
 
-  return {
+  const payment: PaymentResult = {
     transactionId: transaction.id,
     orderId,
     totalAmount: grossAmount,
@@ -308,6 +319,15 @@ export const createPayment = async (
     snapToken: snapResponse.token,
     redirectUrl: snapResponse.redirect_url,
   };
+
+  await publishEvent("payment.created", {
+    transactionId: payment.transactionId,
+    orderId: payment.orderId,
+    totalAmount: payment.totalAmount,
+    paymentStatus: payment.paymentStatus,
+  });
+
+  return payment;
 };
 
 export const checkPaymentStatus = async (
@@ -431,6 +451,15 @@ export const processMidtransWebhook = async (
       customerPhone: true,
       updatedAt: true,
     },
+  });
+
+  await publishEvent("payment.webhook_processed", {
+    transactionId: updatedTransaction.id,
+    paymentStatus: updatedTransaction.paymentStatus,
+    paymentMethod: updatedTransaction.paymentMethod,
+    midtransTransactionId: updatedTransaction.midtransTransactionId,
+    orderId: payload.order_id,
+    midtransStatus: payload.transaction_status,
   });
 
   if (updatedTransaction.paymentStatus === "paid") {

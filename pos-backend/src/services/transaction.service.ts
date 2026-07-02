@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 
 import { prisma } from "../config/prisma";
+import { publishEvent } from "../messaging/rabbitmq";
 import { ApiError } from "../utils/api-error";
 import { CreateTransactionPayload } from "../utils/transaction-validator";
 import { Role } from "../utils/auth-validator";
@@ -155,7 +156,7 @@ export const createTransaction = async (
   payload: CreateTransactionPayload,
   cashier: CashierPayload
 ) => {
-  return prisma.$transaction(async (tx) => {
+  const transaction = await prisma.$transaction(async (tx) => {
     const groupedItems = groupItemsByProduct(payload.items);
     const productMap = await getProductsForCheckout(tx, groupedItems);
 
@@ -230,6 +231,23 @@ export const createTransaction = async (
 
     return mapTransactionDetail(createdTransaction);
   });
+
+  await publishEvent("transaction.created", {
+    transactionId: transaction.id,
+    totalAmount: transaction.totalAmount,
+    paymentStatus: transaction.paymentStatus,
+    customerPhone: transaction.customerPhone,
+    cashierId: transaction.cashierId,
+    items: transaction.items.map((item) => {
+      return {
+        productId: item.product.id,
+        quantity: item.quantity,
+        subtotal: item.subtotal,
+      };
+    }),
+  });
+
+  return transaction;
 };
 
 export const getAllTransactions = async () => {

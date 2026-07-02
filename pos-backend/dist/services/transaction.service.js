@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getTransactionById = exports.getAllTransactions = exports.createTransaction = void 0;
 const client_1 = require("@prisma/client");
 const prisma_1 = require("../config/prisma");
+const rabbitmq_1 = require("../messaging/rabbitmq");
 const api_error_1 = require("../utils/api-error");
 const transactionListSelect = {
     id: true,
@@ -110,7 +111,7 @@ const getProductsForCheckout = async (tx, items) => {
     return new Map(products.map((product) => [product.id, product]));
 };
 const createTransaction = async (payload, cashier) => {
-    return prisma_1.prisma.$transaction(async (tx) => {
+    const transaction = await prisma_1.prisma.$transaction(async (tx) => {
         const groupedItems = groupItemsByProduct(payload.items);
         const productMap = await getProductsForCheckout(tx, groupedItems);
         const transactionItemsData = groupedItems.map((item) => {
@@ -173,6 +174,21 @@ const createTransaction = async (payload, cashier) => {
         }
         return mapTransactionDetail(createdTransaction);
     });
+    await (0, rabbitmq_1.publishEvent)("transaction.created", {
+        transactionId: transaction.id,
+        totalAmount: transaction.totalAmount,
+        paymentStatus: transaction.paymentStatus,
+        customerPhone: transaction.customerPhone,
+        cashierId: transaction.cashierId,
+        items: transaction.items.map((item) => {
+            return {
+                productId: item.product.id,
+                quantity: item.quantity,
+                subtotal: item.subtotal,
+            };
+        }),
+    });
+    return transaction;
 };
 exports.createTransaction = createTransaction;
 const getAllTransactions = async () => {

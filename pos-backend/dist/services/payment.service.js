@@ -4,6 +4,7 @@ exports.processMidtransWebhook = exports.retryPayment = exports.checkPaymentStat
 const env_1 = require("../config/env");
 const midtrans_1 = require("../config/midtrans");
 const prisma_1 = require("../config/prisma");
+const rabbitmq_1 = require("../messaging/rabbitmq");
 const whatsapp_service_1 = require("./whatsapp.service");
 const api_error_1 = require("../utils/api-error");
 const paymentTransactionSelect = {
@@ -92,6 +93,15 @@ const syncTransactionPaymentStatus = async (transactionId, midtransStatus) => {
             midtransOrderId: true,
             updatedAt: true,
         },
+    });
+    await (0, rabbitmq_1.publishEvent)("payment.status_synced", {
+        transactionId: updatedTransaction.id,
+        orderId: updatedTransaction.midtransOrderId,
+        paymentStatus: updatedTransaction.paymentStatus,
+        paymentMethod: updatedTransaction.paymentMethod,
+        midtransTransactionId: updatedTransaction.midtransTransactionId,
+        midtransStatus: midtransStatus.transaction_status,
+        source: "midtrans",
     });
     return {
         transactionId: updatedTransaction.id,
@@ -183,7 +193,7 @@ const createPayment = async (transactionId) => {
             midtransOrderId: orderId,
         },
     });
-    return {
+    const payment = {
         transactionId: transaction.id,
         orderId,
         totalAmount: grossAmount,
@@ -191,6 +201,13 @@ const createPayment = async (transactionId) => {
         snapToken: snapResponse.token,
         redirectUrl: snapResponse.redirect_url,
     };
+    await (0, rabbitmq_1.publishEvent)("payment.created", {
+        transactionId: payment.transactionId,
+        orderId: payment.orderId,
+        totalAmount: payment.totalAmount,
+        paymentStatus: payment.paymentStatus,
+    });
+    return payment;
 };
 exports.createPayment = createPayment;
 const checkPaymentStatus = async (transactionId) => {
@@ -284,6 +301,14 @@ const processMidtransWebhook = async (payload) => {
             customerPhone: true,
             updatedAt: true,
         },
+    });
+    await (0, rabbitmq_1.publishEvent)("payment.webhook_processed", {
+        transactionId: updatedTransaction.id,
+        paymentStatus: updatedTransaction.paymentStatus,
+        paymentMethod: updatedTransaction.paymentMethod,
+        midtransTransactionId: updatedTransaction.midtransTransactionId,
+        orderId: payload.order_id,
+        midtransStatus: payload.transaction_status,
     });
     if (updatedTransaction.paymentStatus === "paid") {
         try {

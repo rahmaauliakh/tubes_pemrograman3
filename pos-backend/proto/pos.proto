@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package pos;
+
+service PosService {
+  rpc GetProduct(ProductIdRequest) returns (Product);
+  rpc ListProducts(Empty) returns (ProductList);
+  rpc CreateTransaction(CreateTransactionRequest) returns (Transaction);
+  rpc GetTransaction(TransactionIdRequest) returns (Transaction);
+  rpc ListTransactions(Empty) returns (TransactionList);
+  rpc CheckPaymentStatus(TransactionIdRequest) returns (PaymentStatusResponse);
+}
+
+message Empty {}
+
+message ProductIdRequest {
+  int32 id = 1;
+}
+
+message TransactionIdRequest {
+  int32 id = 1;
+}
+
+message Product {
+  int32 id = 1;
+  string name = 2;
+  double price = 3;
+  int32 stock = 4;
+}
+
+message ProductList {
+  repeated Product products = 1;
+}
+
+message Cashier {
+  int32 id = 1;
+  string username = 2;
+  string role = 3;
+}
+
+message TransactionItemInput {
+  int32 product_id = 1;
+  int32 quantity = 2;
+}
+
+message CreateTransactionRequest {
+  repeated TransactionItemInput items = 1;
+  string customer_phone = 2;
+  int32 cashier_id = 3;
+  string cashier_username = 4;
+  string cashier_role = 5;
+}
+
+message TransactionItem {
+  int32 id = 1;
+  int32 quantity = 2;
+  double price = 3;
+  double subtotal = 4;
+  Product product = 5;
+}
+
+message Transaction {
+  int32 id = 1;
+  double total_amount = 2;
+  string payment_status = 3;
+  string payment_method = 4;
+  string midtrans_transaction_id = 5;
+  string customer_phone = 6;
+  string created_at = 7;
+  int32 cashier_id = 8;
+  Cashier cashier = 9;
+  repeated TransactionItem items = 10;
+}
+
+message TransactionList {
+  repeated Transaction transactions = 1;
+}
+
+message PaymentStatusResponse {
+  int32 transaction_id = 1;
+  string order_id = 2;
+  string payment_status = 3;
+  string payment_method = 4;
+  string midtrans_transaction_id = 5;
+  string midtrans_status = 6;
+  string last_synced_at = 7;
+  string source = 8;
+}

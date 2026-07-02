@@ -11,6 +11,16 @@ const parsePort = (value) => {
     }
     return parsedValue;
 };
+const parseOptionalPort = (value, defaultValue) => {
+    if (!value) {
+        return defaultValue;
+    }
+    const parsedValue = Number(value);
+    if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
+        throw new Error("Port environment value must be a positive integer.");
+    }
+    return parsedValue;
+};
 const parseBoolean = (value, defaultValue) => {
     if (!value) {
         return defaultValue;
@@ -40,4 +50,8 @@ exports.env = {
     MIDTRANS_IS_PRODUCTION: parseBoolean(process.env.MIDTRANS_IS_PRODUCTION, false),
     FONNTE_TOKEN: getRequiredEnv("FONNTE_TOKEN"),
     FONNTE_DEFAULT_TARGET: process.env.FONNTE_DEFAULT_TARGET,
+    GRPC_HOST: process.env.GRPC_HOST ?? "0.0.0.0",
+    GRPC_PORT: parseOptionalPort(process.env.GRPC_PORT, 50051),
+    RABBITMQ_URL: process.env.RABBITMQ_URL ?? "amqp://localhost:5672",
+    RABBITMQ_EXCHANGE: process.env.RABBITMQ_EXCHANGE ?? "pos.events",
 };
